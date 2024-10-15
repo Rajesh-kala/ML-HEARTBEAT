@@ -1,0 +1,119 @@
+import httplib2
+import urllib3
+from urllib.parse import urlencode
+import urllib.request
+
+import twilio
+from twilio.rest import Client
+import grovepi
+import os
+import math
+import time,sys
+import RPi.GPIO as GPIO
+import smbus
+from grove_rgb_lcd import *
+from time import sleep
+from math import isnan
+import pickle
+
+# Load the model
+with open('heart_attack_logistic_model4.pkl', 'rb') as model_file:
+    model = pickle.load(model_file)
+
+
+class HeartbeatSensor(object):
+
+    def __init__(self):
+        """
+        Connect to an I2C port.
+        """
+        rev = GPIO.RPI_REVISION
+        if rev == 2 or rev == 3:
+            self.bus = smbus.SMBus(1)
+        else:
+            self.bus = smbus.SMBus(0)
+        self.address = 0x50
+
+    def get(self):
+        """
+        Returns the heart rate of the wearer.
+        :return: Integer
+        """
+        return self.bus.read_byte(0x50)
+        
+
+if __name__ == "__main__":
+
+    pulse = HeartbeatSensor()
+    while True:
+        try:
+            rate = pulse.get()
+            
+            
+            time.sleep(5)
+            print(rate)
+            if(rate==0):
+            print("Keep your finger properly on the device");
+            if(rate>0 && rate <=100):
+                print("Normal heartbeat")
+                setRGB(0,255,0)
+                setText_norefresh("Heartbeat Normal")
+                grovepi.digitalWrite(4,1)
+                account_sid ="8"
+                auth_token ="ee"
+                client = Client(account_sid, auth_token)
+                     #SMS sent to registered mobile number about Heart beat       
+                message=client.api.account.messages.create(to="+",from_="+",body="Heartbeat Normal")
+                
+               
+            else:
+                print("Abnormal heartbeat")
+                setRGB(255,0,0)
+                setText_norefresh("AbNormal")
+                grovepi.digitalWrite(4,0)
+                account_sid ="b29b8"
+                auth_token ="0a5ee"
+                client = Client(account_sid, auth_token)
+                     #SMS sent to registered mobile number about Heart beat       
+                message=client.api.account.messages.create(to="+",from_="+",body="AbNormal")
+                
+
+            age=50
+            cholestrol=240
+            max_heart_rate=160
+            heart_rate=rate
+            input_data=np.array([[age,heart_rate,cholestrol,max_heart_rate]])
+            prediction=model.predict(input_data)
+            if prediction == 1:
+                    print("Warning: High risk of heart attack detected!")
+        # Trigger an alert system (could be an email or a buzzer)
+                    account_sid ="A9b8"
+                    auth_token ="5ee"
+                    client = Client(account_sid, auth_token)
+                     #SMS sent to registered mobile number about Heart beat       
+                    message=client.api.account.messages.create(to="+",from_="+",body="High risk of heart attack detected!")
+                
+             
+            else:
+                    print("Normal: No heart attack risk detected.")
+    
+            	    account_sid ="A9b8"
+                    auth_token ="ee"
+                    client = Client(account_sid, auth_token)
+                    #SMS sent to registered mobile number about Heart beat       
+                    message=client.api.account.messages.create(to="+",from_="+",body="No heart attack risk detected")
+                
+            URL='https://api.thingspeak.com/update?api_key='
+            KEY='0'
+            HEADER='&field1={}'.format(rate)
+            new_URL = URL + KEY + HEADER
+            v = urllib.request.urlopen(new_URL)
+            print(v)
+
+           
+                
+            
+            
+        except IOError:
+            print("Error")
+        time.sleep(5)
