@@ -17,7 +17,7 @@ from math import isnan
 import pickle
 
 # Load the model
-with open('heart_attack_logistic_model4.pkl', 'rb') as model_file:
+with open('heart_attack_logistic_modelf.pkl', 'rb') as model_file:
     model = pickle.load(model_file)
 
 
